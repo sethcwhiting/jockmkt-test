@@ -1,11 +1,11 @@
 import React, { useState } from 'react';
-import { StyleSheet, Text, TouchableOpacity, FlatList, View, Image, TextInput } from 'react-native';
+import { StyleSheet, Text, TouchableOpacity, FlatList, View, Image, TextInput, ScrollView } from 'react-native';
 import RNPickerSelect from 'react-native-picker-select';
 
 const logo = require('./assets/logo.png');
 const jmdata = require('./data/eventstocks.json');
 
-const eventStocks = jmdata.event_stocks;
+const eventStocks = jmdata.event_stocks.sort((a, b) => b.fantasy_points_projected - a.fantasy_points_projected);
 
 const styles = StyleSheet.create({
     container: {
@@ -13,7 +13,6 @@ const styles = StyleSheet.create({
         backgroundColor: '#fff',
         alignItems: 'center',
         paddingTop: 30,
-        paddingHorizontal: 0,
     },
     header: {
         padding: 20,
@@ -33,6 +32,7 @@ const styles = StyleSheet.create({
         width: '100%',
         flexDirection: 'row',
         alignItems: 'center',
+        overflow: 'hidden',
         marginTop: 20,
     },
     item: {
@@ -52,15 +52,19 @@ const styles = StyleSheet.create({
 });
 
 export default function App() {
-    const [selectedValue, setSelectedValue] = useState('pfpd');
+    const [sortValue, setSortValue] = useState('pfpd');
     const [searchValue, setSearchValue] = useState('');
     const [stockData, setStockData] = useState(eventStocks);
     const [selectedStock, setSelectedStock] = useState(null);
 
     const curateData = args => {
         let newData = eventStocks;
-        if (args.search) newData = newData.filter(data => data.stock && data.stock.name.toLowerCase().includes(args.search.toLowerCase()));
-        switch (args.sort) {
+        const searchVal = typeof args.search === 'string' ? args.search : searchValue;
+        const sortVal = args.sort || sortValue;
+        if (typeof args.search === 'string') setSearchValue(args.search);
+        if (args.sort) setSortValue(args.sort);
+        newData = newData.filter(data => data.stock && data.stock.name.toLowerCase().includes(searchVal.toLowerCase()));
+        switch (sortVal) {
             case 'pfpd':
                 newData = newData.sort((a, b) => b.fantasy_points_projected - a.fantasy_points_projected);
                 break;
@@ -85,35 +89,6 @@ export default function App() {
         setStockData(newData);
     };
 
-    const ListHeader = () => (
-        <View style={styles.header}>
-            <Image source={logo} style={{ width: 242.5, height: 125 }} />
-            <View style={styles.inputWrap}>
-                <Text style={{ fontSize: 20, fontWeight: 'bold', marginRight: 20 }}>Search:</Text>
-                <TextInput onBlur={({ nativeEvent: { text } }) => curateData({ search: text })} placeholder="Search" style={styles.search} />
-            </View>
-            <View style={styles.inputWrap}>
-                <Text style={{ fontSize: 20, fontWeight: 'bold', marginRight: 20 }}>Sort By:</Text>
-                <RNPickerSelect
-                    onValueChange={sort => {
-                        setSelectedValue(sort);
-                        curateData({ sort });
-                    }}
-                    value={selectedValue}
-                    textInputProps={{ style: { fontSize: 20, color: '#06b17f' } }}
-                    items={[
-                        { label: 'Projected Fantasy Points (desc)', value: 'pfpd' },
-                        { label: 'Projected Fantasy Points (asc)', value: 'pfpa' },
-                        { label: 'Actual Fantasy Points (desc)', value: 'afpd' },
-                        { label: 'Actual Fantasy Points (asc)', value: 'afpa' },
-                        { label: 'Last Trade Price (desc)', value: 'ltpd' },
-                        { label: 'Last Trade Price (asc)', value: 'ltpa' },
-                    ]}
-                />
-            </View>
-        </View>
-    );
-
     const Item = ({ data }) => (
         <TouchableOpacity style={styles.item} onPress={() => setSelectedStock(data)}>
             <View style={{ width: 70, height: 70, backgroundColor: '#eeffe5', borderRadius: 35, overflow: 'hidden' }}>
@@ -137,26 +112,54 @@ export default function App() {
     return (
         <View style={styles.container}>
             {(!selectedStock && (
-                <FlatList
-                    data={stockData}
-                    style={{ width: '100%' }}
-                    ListHeaderComponent={() => <ListHeader />}
-                    keyExtractor={item => item.id}
-                    renderItem={({ item }) => <Item data={item} />}
-                />
-            )) || (
-                <View style={{ flex: 1, width: '100%', padding: 15 }}>
-                    <View>
-                        <TouchableOpacity onPress={() => setSelectedStock(null)}>
-                            <Text style={{ color: '#06b17f', fontSize: 22 }}>{'< Back'}</Text>
-                        </TouchableOpacity>
+                <View style={{ width: '100%' }}>
+                    <View style={styles.header}>
+                        <Image source={logo} style={{ width: 181.875, height: 93.75 }} />
+                        <View style={styles.inputWrap}>
+                            <Text style={{ fontSize: 20, fontWeight: 'bold', marginRight: 20 }}>Search:</Text>
+                            <TextInput value={searchValue} onChangeText={text => curateData({ search: text })} placeholder="Search" style={styles.search} />
+                        </View>
+                        <View style={styles.inputWrap}>
+                            <Text style={{ fontSize: 20, fontWeight: 'bold', marginRight: 20 }}>Sort By:</Text>
+                            <RNPickerSelect
+                                onValueChange={sort => {
+                                    setSortValue(sort);
+                                    curateData({ sort });
+                                }}
+                                value={sortValue}
+                                useNativeAndroidPickerStyle={false}
+                                Icon={() => <View />}
+                                textInputProps={{ style: { fontSize: 20, color: '#06b17f' } }}
+                                placeholder={{}}
+                                items={[
+                                    { label: 'Projected Fantasy Points (desc)', value: 'pfpd' },
+                                    { label: 'Projected Fantasy Points (asc)', value: 'pfpa' },
+                                    { label: 'Actual Fantasy Points (desc)', value: 'afpd' },
+                                    { label: 'Actual Fantasy Points (asc)', value: 'afpa' },
+                                    { label: 'Last Trade Price (desc)', value: 'ltpd' },
+                                    { label: 'Last Trade Price (asc)', value: 'ltpa' },
+                                ]}
+                            />
+                        </View>
                     </View>
+                    <FlatList
+                        data={stockData}
+                        style={{ width: '100%' }}
+                        // ListHeaderComponent={() => <ListHeader />}
+                        keyExtractor={item => item.id}
+                        renderItem={({ item }) => <Item data={item} />}
+                    />
+                </View>
+            )) || (
+                <ScrollView style={{ flex: 1, width: '100%', padding: 15 }}>
+                    <TouchableOpacity onPress={() => setSelectedStock(null)}>
+                        <Text style={{ color: '#06b17f', fontSize: 22 }}>{'< Back'}</Text>
+                    </TouchableOpacity>
                     <View style={{ flex: 1, width: '100%', alignItems: 'center' }}>
                         <View style={{ width: 140, height: 140, backgroundColor: '#eeffe5', borderRadius: 70, overflow: 'hidden' }}>
                             {/* eslint-disable-next-line camelcase */}
                             <Image source={{ uri: selectedStock?.stock.image_url }} style={{ width: 140, height: 140 }} />
                         </View>
-                        {console.log(selectedStock?.stock.name)}
                         <View style={{ flex: 1, width: '100%' }}>
                             <Text style={{ fontSize: 36, color: '#06b17f', textAlign: 'center', fontWeight: 'bold', lineHeight: 80 }}>
                                 {selectedStock.stock?.name}
@@ -195,7 +198,7 @@ export default function App() {
                             </Text>
                         </View>
                     </View>
-                </View>
+                </ScrollView>
             )}
         </View>
     );
